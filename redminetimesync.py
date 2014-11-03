@@ -48,7 +48,7 @@ def calDuration(t2,t1):
     t1 = t1.split()[1].split(":")
     t2 = t2.split()[1].split(":")
     duration = datetime.timedelta(0,int(t2[2]),0,0,int(t2[1]),int(t2[0])) - datetime.timedelta(0,int(t1[2]),0,0,int(t1[1]),int(t1[0]))
-    return round(duration.seconds/3600.0, 1)
+    return round(duration.seconds/3600.0, 2)
 
 def getTimeEntries(time_entries, verbose=True):
     '''Return an array of explicit associative array for times entries, filtering out
@@ -97,8 +97,8 @@ def getTimeEntries(time_entries, verbose=True):
                 activity_id = None
 
         array.append({
-            'description': label,
-            'label': label,
+            'description': label.replace('#' + issue_id, '').strip(),
+            'label': label.replace('#' + issue_id, '').strip(),
             'issue_id': issue_id,
             'duration': duration,
             'comment': comment,
@@ -118,11 +118,13 @@ def generateXml(time_entries, date):
 
     myxml = []
     for time_entry in time_entries:
+        comment = empty_if_none(time_entry['label']).encode("utf-8") +\
+          empty_if_none(time_entry['comment']).encode("utf-8")
         myxml.append('<time_entry><issue_id>{issue_id}</issue_id><spent_on>{date}</spent_on><hours>{duration}</hours><comments>{comment}</comments><activity_id>{activity_id}</activity_id></time_entry>'.format(
                 date=date,
                 issue_id=time_entry['issue_id'],
                 duration=time_entry['duration'],
-                comment=empty_if_none(time_entry['comment']).encode("utf-8"),
+                comment=comment,
                 activity_id=empty_if_none(time_entry['activity_id'])
             )
         )
