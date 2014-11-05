@@ -1,11 +1,12 @@
-#!/usr/bin/python
-import sqlite3
+#!/home/maik/apps/redminetimesync/venv/bin/python
+from xml.dom import minidom
+import ConfigParser
+import cgi
 import datetime
 import os
-import sys
-import ConfigParser
 import re
-from xml.dom import minidom
+import sqlite3
+import sys
 import yaml
 
 from redmine import Redmine
@@ -45,10 +46,23 @@ def fetchFromDatabase(dataFile, date):
 def calDuration(t2,t1):
     '''calculate delta between two timestamps
     Return an INT with the hour value'''
+
+    if configProperties.has_option('default', 'rounding_divisor_minutes'):
+        rounding_divisor_minutes = int(
+            configProperties.get('default', 'rounding_divisor_minutes'))
+    else:
+        rounding_divisor_minutes = 15
     t1 = t1.split()[1].split(":")
     t2 = t2.split()[1].split(":")
-    duration = datetime.timedelta(0,int(t2[2]),0,0,int(t2[1]),int(t2[0])) - datetime.timedelta(0,int(t1[2]),0,0,int(t1[1]),int(t1[0]))
-    return round(duration.seconds/3600.0, 2)
+    duration = datetime.timedelta(0,int(t2[2]),0,0,int(t2[1]),int(t2[0])) \
+        - datetime.timedelta(0,int(t1[2]),0,0,int(t1[1]),int(t1[0]))
+    divisor_seconds = rounding_divisor_minutes * 60
+    duration_quarters = duration.seconds / divisor_seconds
+    duration_quarters_modulo = duration.seconds % divisor_seconds
+    duration_quarters += duration_quarters_modulo / (divisor_seconds / 2)
+    rounded_duration_seconds = duration_quarters * divisor_seconds
+    duration_hours = rounded_duration_seconds / 3600.0
+    return round(duration_hours, 2)
 
 def getTimeEntries(time_entries, verbose=True):
     '''Return an array of explicit associative array for times entries, filtering out
@@ -61,10 +75,12 @@ def getTimeEntries(time_entries, verbose=True):
     array = []
     total_duration = 0
     for time_entry in time_entries:
-        label = time_entry[0]
+        label = time_entry[0] or ''
+        label = cgi.escape(label)
         duration = calDuration(time_entry[2], time_entry[1])
         total_duration += duration
-        comment = time_entry[3]
+        comment = time_entry[3] or ''
+        comment = cgi.escape(comment)
         # Try to find Redmine issue IDs from label using regexp defined in config file
         match = re.match(configProperties.get('default', 'issue_id_regexp'), label)
         if match:
